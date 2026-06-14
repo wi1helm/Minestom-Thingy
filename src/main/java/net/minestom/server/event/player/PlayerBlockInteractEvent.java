@@ -17,11 +17,10 @@ public class PlayerBlockInteractEvent implements PlayerInstanceEvent, BlockEvent
 
     private final Player player;
     private final PlayerHand hand;
-    private final Instance instance;
     private final Block block;
     private final BlockVec blockPosition;
-    private final Point cursorPosition;
     private final BlockFace blockFace;
+    private final Point cursorPosition;
 
     /**
      * Does this interaction block the normal item use?
@@ -31,12 +30,11 @@ public class PlayerBlockInteractEvent implements PlayerInstanceEvent, BlockEvent
 
     private boolean cancelled;
 
-    public PlayerBlockInteractEvent(Player player, PlayerHand hand, Instance instance,
-                                    Block block, BlockVec blockPosition, Point cursorPosition,
-                                    BlockFace blockFace) {
+    public PlayerBlockInteractEvent(Player player, PlayerHand hand,
+                                    Block block, BlockVec blockPosition, BlockFace blockFace,
+                                    Point cursorPosition) {
         this.player = player;
         this.hand = hand;
-        this.instance = instance;
         this.block = block;
         this.blockPosition = blockPosition;
         this.cursorPosition = cursorPosition;
@@ -59,11 +57,6 @@ public class PlayerBlockInteractEvent implements PlayerInstanceEvent, BlockEvent
      */
     public void setBlockingItemUse(boolean blocks) {
         this.blocksItemUse = blocks;
-    }
-
-    @Override
-    public Instance getInstance() {
-        return instance;
     }
 
     @Override
