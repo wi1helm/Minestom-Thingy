@@ -309,6 +309,7 @@ public class PlayerInit {
                         player.setVelocity(Vec.ZERO);
                         player.swingMainHand();
                         player.enterBed((isHead ? pos : other));
+                        event.setBlockingItemUse(true);
                     }
                 }
             })
@@ -345,6 +346,10 @@ public class PlayerInit {
 
                         instance.setBlock(pos, block);
                         return;
+                    } else {
+                        if (material.equals(Material.WATER_BUCKET)) {
+                            instance.placeBlock(new BlockHandler.PlayerPlacement(Block.WATER, event.getBlock(), event.getInstance(), event.getBlockPosition(), event.getPlayer(), event.getHand(), event.getBlockFace(), event.getCursorPosition()));
+                        }
                     }
                 }
 
@@ -362,6 +367,10 @@ public class PlayerInit {
 
                     // Spawn particles
                     event.getPlayer().sendPacket(new ParticlePacket(Particle.HAPPY_VILLAGER, new Pos(abovePos).add(0.5), new Pos(0.3, 0.3, 0.3), 0, 10));
+                    return;
+                }
+                if (material.isBlock()) {
+                    instance.placeBlock(new BlockHandler.PlayerPlacement(material.block(), block, instance, pos, event.getPlayer(), event.getHand(), event.getBlockFace(), event.getCursorPosition()));
                     return;
                 }
             })
@@ -442,6 +451,7 @@ public class PlayerInit {
 
             if (unit.absoluteStart().blockY() < 40 && unit.absoluteEnd().blockY() > 40) {
                 unit.modifier().setBlock(unit.absoluteStart().blockX(), 40, unit.absoluteStart().blockZ(), Block.TORCH);
+                unit.modifier().setBlock(unit.absoluteStart().blockX() + 2, 40, unit.absoluteStart().blockZ() + 3, Block.SHORT_GRASS);
             }
         });
         instanceContainer.setChunkSupplier(LightingChunk::new);

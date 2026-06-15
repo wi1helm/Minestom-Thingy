@@ -33,17 +33,48 @@ import net.minestom.server.utils.validate.Check;
 import net.minestom.server.world.DimensionType;
 
 public class BlockPlacementListener {
-    private static final BlockManager BLOCK_MANAGER = MinecraftServer.getBlockManager();
 
     public static void listener(ClientPlayerBlockPlacementPacket packet, Player player) {
         final PlayerHand hand = packet.hand();
-        final BlockFace blockFace = packet.blockFace();
-        Point blockPosition = packet.blockPosition();
+        final BlockFace face = packet.blockFace();
+        final Point position = packet.blockPosition();
 
         final Instance instance = player.getInstance();
-        if (instance == null)
-            return;
+        if (instance == null) return;
 
+        // Prevent outdated/modified client data
+        final Chunk chunk = instance.getChunkAt(position);
+        // If Client tried to place a block in an unloaded chunk, ignore the request
+        if (!ChunkUtils.isLoaded(chunk)) return;
+
+        final ItemStack item = player.getItemInHand(hand);
+        final Block block = instance.getBlock(position);
+        final Point cursor = new Vec(packet.cursorPositionX(), packet.cursorPositionY(), packet.cursorPositionZ());
+
+        PlayerBlockInteractEvent playerBlockInteractEvent = new PlayerBlockInteractEvent(player, hand, block, position.asBlockVec(), face, cursor);
+        EventDispatcher.call(playerBlockInteractEvent);
+
+        if (playerBlockInteractEvent.isCancelled()) {
+            player.sendPacket(new AcknowledgeBlockChangePacket(packet.sequence()));
+            return;
+        }
+
+        if (playerBlockInteractEvent.isBlockingItemUse()) {
+            player.sendPacket(new AcknowledgeBlockChangePacket(packet.sequence()));
+            return;
+        }
+        final var handler = block.handler();
+        if (handler != null && !handler.onInteract(new BlockHandler.Interaction(block, instance, face, position, cursor, player, hand))) {
+            player.sendPacket(new AcknowledgeBlockChangePacket(packet.sequence()));
+            return;
+        }
+        PlayerUseItemOnBlockEvent playerUseItemOnBlockEvent = new PlayerUseItemOnBlockEvent(player, hand, item, block, position.asBlockVec(), face, cursor);
+        EventDispatcher.call(playerUseItemOnBlockEvent);
+        player.sendPacket(new AcknowledgeBlockChangePacket(packet.sequence()));
+    }
+
+
+    /*
         // Prevent outdated/modified client data
         final Chunk interactedChunk = instance.getChunkAt(blockPosition);
         if (!ChunkUtils.isLoaded(interactedChunk)) {
@@ -182,6 +213,7 @@ public class BlockPlacementListener {
             player.getInventory().update();
         }
     }
+    */
 
     private static void refresh(Player player, Chunk chunk) {
         player.getInventory().update();

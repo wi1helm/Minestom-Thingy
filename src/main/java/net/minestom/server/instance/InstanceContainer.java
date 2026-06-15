@@ -125,7 +125,7 @@ public class InstanceContainer extends Instance {
     }
 
     @Override
-    public void setBlock(int x, int y, int z, Block block, boolean doBlockUpdates) {
+    public void doSetBlock(int x, int y, int z, Block block, boolean doBlockUpdates) {
         Chunk chunk = getChunkAt(x, z);
         if (chunk == null) {
             Check.stateCondition(!hasEnabledAutoChunkLoad(),
@@ -175,7 +175,7 @@ public class InstanceContainer extends Instance {
                 if (placement instanceof BlockHandler.PlayerPlacement pp) {
                     rulePlacement = new BlockPlacementRule.PlacementState(
                             this, block, pp.getBlockFace(), blockPosition,
-                            new Vec(pp.getCursorX(), pp.getCursorY(), pp.getCursorZ()),
+                            pp.getCursorPosition().asVec(),
                             pp.getPlayer().getPosition(),
                             pp.getPlayer().getItemInHand(pp.getHand()),
                             pp.getPlayer().isSneaking()
@@ -216,7 +216,7 @@ public class InstanceContainer extends Instance {
     }
 
     @Override
-    public boolean placeBlock(BlockHandler.Placement placement, boolean doBlockUpdates) {
+    public boolean doPlaceBlock(BlockHandler.Placement placement, boolean doBlockUpdates) {
         final Point blockPosition = placement.getBlockPosition();
         final Chunk chunk = getChunkAt(blockPosition);
         if (!isLoaded(chunk)) return false;

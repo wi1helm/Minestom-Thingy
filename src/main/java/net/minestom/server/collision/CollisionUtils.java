@@ -150,7 +150,7 @@ public final class CollisionUtils {
     public static PhysicsResult handlePhysics(Entity entity, Vec entityVelocity) {
         return handlePhysics(entity, entityVelocity, null);
     }
-
+    @Nullable
     public static Entity canPlaceBlockAt(Instance instance, Point blockPos, Block b) {
         return BlockCollision.canPlaceBlockAt(instance, blockPos, b);
     }

@@ -2,6 +2,7 @@ package net.minestom.server.event.player;
 
 import net.minestom.server.coordinate.BlockVec;
 import net.minestom.server.coordinate.Point;
+import net.minestom.server.entity.GameMode;
 import net.minestom.server.entity.Player;
 import net.minestom.server.entity.PlayerHand;
 import net.minestom.server.event.trait.*;
@@ -22,7 +23,7 @@ public class PlayerBlockPlaceEvent implements PlayerInstanceEvent, BlockEvent, C
     private final Point cursorPosition;
     private final PlayerHand hand;
 
-    private boolean consumeBlock;
+    private int consumeBlockAmount;
     private boolean doBlockUpdates;
 
     private boolean cancelled;
@@ -37,7 +38,7 @@ public class PlayerBlockPlaceEvent implements PlayerInstanceEvent, BlockEvent, C
         this.blockPosition = blockPosition;
         this.cursorPosition = cursorPosition;
         this.hand = hand;
-        this.consumeBlock = true;
+        this.consumeBlockAmount = 1;
         this.doBlockUpdates = true;
     }
 
@@ -93,21 +94,27 @@ public class PlayerBlockPlaceEvent implements PlayerInstanceEvent, BlockEvent, C
     }
 
     /**
-     * Should the block be consumed if not cancelled.
+     * How many blocks (or items) should be consumed.
      *
-     * @param consumeBlock true if the block should be consumer (-1 amount), false otherwise
+     * @param amount is the amount of items consumed, 0 for no counsumtion
      */
-    public void consumeBlock(boolean consumeBlock) {
-        this.consumeBlock = consumeBlock;
+    public void setConsumeBlockAmount(int amount) {
+        if (amount < 0) amount = 0;
+        this.consumeBlockAmount = amount;
+    }
+
+    public void setConsumeBlock(boolean consumeBlock) {
+        this.consumeBlockAmount = consumeBlock ? 1 : 0;
     }
 
     /**
-     * Should the block be consumed if not cancelled.
-     *
-     * @return true if the block will be consumed, false otherwise
+     * Does any items get consumed when placing.
+     * If player is in creative mode no items will be consumed
+     * @return true if blocks will be consumed, false otherwise
      */
     public boolean doesConsumeBlock() {
-        return consumeBlock;
+        if (player.getGameMode().equals(GameMode.CREATIVE)) return false;
+        return consumeBlockAmount == 0;
     }
 
     /**

@@ -2,10 +2,13 @@ package net.minestom.server.instance.block;
 
 import net.kyori.adventure.key.Key;
 import net.minestom.server.coordinate.Point;
+import net.minestom.server.coordinate.Vec;
 import net.minestom.server.entity.Entity;
 import net.minestom.server.entity.Player;
 import net.minestom.server.entity.PlayerHand;
 import net.minestom.server.instance.Instance;
+import net.minestom.server.item.ItemStack;
+import net.minestom.server.item.Material;
 import net.minestom.server.tag.Tag;
 import org.jetbrains.annotations.ApiStatus;
 
@@ -124,18 +127,27 @@ public interface BlockHandler {
         private final Player player;
         private final PlayerHand hand;
         private final BlockFace blockFace;
-        private final float cursorX, cursorY, cursorZ;
+        private final Point cursorPosition;
+        private final ItemStack item;
 
         @ApiStatus.Internal
-        public PlayerPlacement(Block block, Block previousBlock, Instance instance, Point blockPosition,
-                               Player player, PlayerHand hand, BlockFace blockFace, float cursorX, float cursorY, float cursorZ) {
+        public PlayerPlacement(Block block, Block previousBlock, Instance instance, Point blockPosition, Player player, PlayerHand hand, BlockFace blockFace, Point cursorPosition) {
             super(block, previousBlock, instance, blockPosition);
             this.player = player;
             this.hand = hand;
             this.blockFace = blockFace;
-            this.cursorX = cursorX;
-            this.cursorY = cursorY;
-            this.cursorZ = cursorZ;
+            this.cursorPosition = cursorPosition;
+            this.item = ItemStack.of(block.registry().material() != null ? block.registry().material() : Material.AIR);
+        }
+
+        @ApiStatus.Internal
+        public PlayerPlacement(Block block, Block previousBlock, Instance instance, Point blockPosition, Player player, PlayerHand hand, BlockFace blockFace, Point cursorPosition, ItemStack item) {
+            super(block, previousBlock, instance, blockPosition);
+            this.player = player;
+            this.hand = hand;
+            this.blockFace = blockFace;
+            this.cursorPosition = cursorPosition;
+            this.item = item;
         }
 
         public Player getPlayer() {
@@ -150,17 +162,11 @@ public interface BlockHandler {
             return blockFace;
         }
 
-        public float getCursorX() {
-            return cursorX;
+        public Point getCursorPosition() {
+            return cursorPosition;
         }
 
-        public float getCursorY() {
-            return cursorY;
-        }
-
-        public float getCursorZ() {
-            return cursorZ;
-        }
+        public ItemStack getItem() { return item; }
     }
 
     sealed class Destroy permits PlayerDestroy {

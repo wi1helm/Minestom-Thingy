@@ -27,13 +27,13 @@ public class SharedInstance extends Instance {
     }
 
     @Override
-    public void setBlock(int x, int y, int z, Block block, boolean doBlockUpdates) {
-        this.instanceContainer.setBlock(x, y, z, block, doBlockUpdates);
+    public void doSetBlock(int x, int y, int z, Block block, boolean doBlockUpdates) {
+        this.instanceContainer.doSetBlock(x, y, z, block, doBlockUpdates);
     }
 
     @Override
-    public boolean placeBlock(BlockHandler.Placement placement, boolean doBlockUpdates) {
-        return instanceContainer.placeBlock(placement, doBlockUpdates);
+    public boolean doPlaceBlock(BlockHandler.Placement placement, boolean doBlockUpdates) {
+        return instanceContainer.doPlaceBlock(placement, doBlockUpdates);
     }
 
     @Override

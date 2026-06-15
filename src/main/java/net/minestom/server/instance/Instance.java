@@ -18,24 +18,30 @@ import net.minestom.server.ServerProcess;
 import net.minestom.server.Tickable;
 import net.minestom.server.adventure.AdventurePacketConvertor;
 import net.minestom.server.adventure.audience.PacketGroupingAudience;
+import net.minestom.server.collision.CollisionUtils;
+import net.minestom.server.component.DataComponents;
 import net.minestom.server.coordinate.CoordConversion;
 import net.minestom.server.coordinate.Point;
-import net.minestom.server.entity.Entity;
-import net.minestom.server.entity.EntityCreature;
-import net.minestom.server.entity.ExperienceOrb;
-import net.minestom.server.entity.Player;
+import net.minestom.server.entity.*;
 import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.event.EventFilter;
 import net.minestom.server.event.EventHandler;
 import net.minestom.server.event.EventNode;
 import net.minestom.server.event.instance.InstanceSectionInvalidateEvent;
 import net.minestom.server.event.instance.InstanceTickEvent;
+import net.minestom.server.event.player.PlayerBlockPlaceEvent;
 import net.minestom.server.event.trait.InstanceEvent;
 import net.minestom.server.instance.block.Block;
 import net.minestom.server.instance.block.BlockFace;
 import net.minestom.server.instance.block.BlockHandler;
+import net.minestom.server.instance.block.BlockManager;
+import net.minestom.server.instance.block.rule.BlockPlacementRule;
 import net.minestom.server.instance.generator.Generator;
 import net.minestom.server.instance.light.Light;
+import net.minestom.server.item.ItemStack;
+import net.minestom.server.item.Material;
+import net.minestom.server.item.component.BlockPredicates;
+import net.minestom.server.item.component.ItemBlockState;
 import net.minestom.server.network.packet.server.ServerPacket;
 import net.minestom.server.network.packet.server.play.BlockActionPacket;
 import net.minestom.server.network.packet.server.play.InitializeWorldBorderPacket;
@@ -52,6 +58,7 @@ import net.minestom.server.utils.ArrayUtils;
 import net.minestom.server.utils.PacketSendingUtils;
 import net.minestom.server.utils.chunk.ChunkCache;
 import net.minestom.server.utils.chunk.ChunkSupplier;
+import net.minestom.server.utils.chunk.ChunkUtils;
 import net.minestom.server.utils.validate.Check;
 import net.minestom.server.world.DimensionType;
 import net.minestom.server.world.biome.Biome;
@@ -191,7 +198,7 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
 
     @Override
     public void setBlock(int x, int y, int z, Block block) {
-        setBlock(x, y, z, block, true);
+        doSetBlock(x, y, z, block, true);
     }
 
     @Override
@@ -207,18 +214,85 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
     }
 
     public void setBlock(Point blockPosition, Block block, boolean doBlockUpdates) {
-        setBlock(blockPosition.blockX(), blockPosition.blockY(), blockPosition.blockZ(), block, doBlockUpdates);
+        doSetBlock(blockPosition.blockX(), blockPosition.blockY(), blockPosition.blockZ(), block, doBlockUpdates);
+    }
+    @ApiStatus.Internal
+    public abstract void doSetBlock(int x, int y, int z, Block block, boolean doBlockUpdates);
+
+
+    public boolean placeBlock(BlockHandler.PlayerPlacement placement) {
+        final Player player = placement.getPlayer();
+        final Point clickedPosition = placement.getBlockPosition();
+        final BlockFace blockFace = placement.getBlockFace();
+        final Point cursorPosition = placement.getCursorPosition();
+        final Block placedBlock = placement.getBlock();
+        final ItemStack usedItem = placement.getItem();
+        final Block clickedBlock = placement.getPreviousBlock();
+
+        if (player.getGameMode() == GameMode.SPECTATOR) return false;
+        if (player.getGameMode() == GameMode.ADVENTURE) {
+            BlockPredicates placePredicate = usedItem.get(DataComponents.CAN_PLACE_ON, BlockPredicates.NEVER);
+            if (!placePredicate.test(clickedBlock)) return false;
+        }
+
+        final DimensionType instanceDim = this.getCachedDimensionType();
+        if (clickedPosition.y() >= instanceDim.maxY() || clickedPosition.y() < instanceDim.minY()) return false;
+        if (!getWorldBorder().inBounds(clickedPosition)) return false;
+
+        // Set the correct position of the block to be placed depending on placementrules.
+        Point finalPlacementPosition = clickedPosition;
+        final BlockManager blockManager = MinecraftServer.getBlockManager();
+        final BlockPlacementRule clickedBlockRule = blockManager.getBlockPlacementRule(clickedBlock);
+        @Nullable final Material useMaterial = placedBlock.registry().material();
+
+        boolean isTargetReplaceable = clickedBlock.isAir() || clickedBlock.registry().isReplaceable();
+
+        // if the block clicked is not a self replaceable block (ex grass, fern etc) get the correct position
+        if (!isTargetReplaceable && (clickedBlockRule == null || !clickedBlockRule.isSelfReplaceable(new BlockPlacementRule.Replacement(clickedBlock, blockFace, cursorPosition, false, useMaterial)))) {
+
+            finalPlacementPosition = clickedPosition.relative(blockFace);
+
+            if (finalPlacementPosition.y() >= instanceDim.maxY() || finalPlacementPosition.y() < instanceDim.minY()) return false;
+            if (!getWorldBorder().inBounds(finalPlacementPosition)) return false;
+
+            final Block targetBlock = this.getBlock(finalPlacementPosition);
+            final BlockPlacementRule targetRule = blockManager.getBlockPlacementRule(targetBlock);
+
+            // if the new position say is a full block then a block cant be place. This will probably not happen in normal play.
+            if (!targetBlock.registry().isReplaceable() && !(targetRule != null && targetRule.isSelfReplaceable(
+                    new BlockPlacementRule.Replacement(targetBlock, blockFace, cursorPosition, true, useMaterial)))) {
+                return false;
+            }
+        }
+
+        final Chunk chunk = this.getChunkAt(finalPlacementPosition);
+        if (!ChunkUtils.isLoaded(chunk) || chunk.isReadOnly()) return false;
+        if (CollisionUtils.canPlaceBlockAt(this, finalPlacementPosition, placedBlock) != null) return false;
+
+        final Block finalPreviosBlock = this.getBlock(finalPlacementPosition);
+
+        BlockHandler.PlayerPlacement finalPlacement = new BlockHandler.PlayerPlacement(placedBlock, finalPreviosBlock, this, finalPlacementPosition, player, placement.getHand(), blockFace, cursorPosition);
+
+        PlayerBlockPlaceEvent event = new PlayerBlockPlaceEvent(player, this, placedBlock, blockFace, finalPlacementPosition.asBlockVec(), cursorPosition, placement.getHand()
+        );
+
+        if (useMaterial != null) {
+            final ItemBlockState blockState = usedItem.get(DataComponents.BLOCK_STATE, ItemBlockState.EMPTY);
+            event.setDoBlockUpdates(blockState.equals(useMaterial.prototype().get(DataComponents.BLOCK_STATE, ItemBlockState.EMPTY)));
+        }
+        EventDispatcher.call(event);
+        if (event.isCancelled()) return false;
+
+        // Pass the corrected finalPlacement downstream!
+        return doPlaceBlock(finalPlacement, event.shouldDoBlockUpdates());
     }
 
-    public abstract void setBlock(int x, int y, int z, Block block, boolean doBlockUpdates);
-
-    @ApiStatus.Internal
     public boolean placeBlock(BlockHandler.Placement placement) {
-        return placeBlock(placement, true);
+        return doPlaceBlock(placement, true);
     }
 
     @ApiStatus.Internal
-    public abstract boolean placeBlock(BlockHandler.Placement placement, boolean doBlockUpdates);
+    public abstract boolean doPlaceBlock(BlockHandler.Placement placement, boolean doBlockUpdates);
 
     /**
      * Does call {@link net.minestom.server.event.player.PlayerBlockBreakEvent}

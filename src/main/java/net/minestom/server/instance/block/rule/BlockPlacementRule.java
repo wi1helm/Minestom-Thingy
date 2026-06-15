@@ -80,7 +80,7 @@ public abstract class BlockPlacementRule {
 			  position.
 			 */
             boolean isOffset,
-            Material material
+            @Nullable Material material
     ) {
     }
 }
