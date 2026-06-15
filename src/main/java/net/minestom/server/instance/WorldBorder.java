@@ -64,8 +64,8 @@ public record WorldBorder(double diameter, double centerX, double centerZ, int w
      */
     public boolean inBounds(Point point) {
         double radius = diameter / 2;
-        return point.x() <= centerX + radius && point.x() >= centerX - radius &&
-                point.z() <= centerZ + radius && point.z() >= centerZ - radius;
+        return point.x() < centerX + radius && point.x() >= centerX - radius &&
+                point.z() < centerZ + radius && point.z() >= centerZ - radius;
     }
 
     /**
