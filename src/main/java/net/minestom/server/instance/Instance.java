@@ -219,7 +219,13 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
     @ApiStatus.Internal
     public abstract void doSetBlock(int x, int y, int z, Block block, boolean doBlockUpdates);
 
-
+    /**
+     * Place a block as if it is placed by player.
+     * Does call {@link net.minestom.server.event.player.PlayerBlockPlaceEvent}
+     *
+     * @param placement the placement for the block
+     * @return if the block got placed.
+     */
     public boolean placeBlock(BlockHandler.PlayerPlacement placement) {
         final Player player = placement.getPlayer();
         final Point clickedPosition = placement.getBlockPosition();
@@ -247,7 +253,7 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
         final BlockPlacementRule clickedBlockRule = blockManager.getBlockPlacementRule(clickedBlock);
         boolean isTargetReplaceable = clickedBlock.isAir() || clickedBlock.registry().isReplaceable();
 
-        // Determine final placement position based on replacement rules
+        // Determine final placement position, offset or replace
         Point finalPlacementPosition;
         if (!isTargetReplaceable && (clickedBlockRule == null || !clickedBlockRule.isSelfReplaceable(new BlockPlacementRule.Replacement(clickedBlock, blockFace, cursorPosition, false, useMaterial)))) {
             // Block is not replaceable, place against the clicked face
@@ -258,6 +264,7 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
 
             final Block targetBlock = this.getBlock(finalPlacementPosition);
             final BlockPlacementRule targetRule = blockManager.getBlockPlacementRule(targetBlock);
+            // check if new block is replaceable if not, cant place
             if (!targetBlock.registry().isReplaceable() && !(targetRule != null && targetRule.isSelfReplaceable(
                     new BlockPlacementRule.Replacement(targetBlock, blockFace, cursorPosition, true, useMaterial)))) {
                 return false;
@@ -276,9 +283,8 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
 
         final Block finalPreviousBlock = this.getBlock(finalPlacementPosition);
 
-        PlayerBlockPlaceEvent playerBlockPlaceEvent = new PlayerBlockPlaceEvent(
-                player, this, placedBlock, blockFace,
-                finalPlacementPosition.asBlockVec(), cursorPosition, placement.getHand());
+        // send the block place event. can change block type and consumtion amount.
+        PlayerBlockPlaceEvent playerBlockPlaceEvent = new PlayerBlockPlaceEvent(player, this, placedBlock, blockFace, finalPlacementPosition.asBlockVec(), cursorPosition, placement.getHand());
 
         if (useMaterial.isBlock()) {
             final ItemBlockState blockState = usedItem.get(DataComponents.BLOCK_STATE, ItemBlockState.EMPTY);
@@ -295,10 +301,6 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
         BlockHandler.PlayerPlacement finalPlacement = new BlockHandler.PlayerPlacement(playerBlockPlaceEvent.getBlock(), finalPreviousBlock, this, finalPlacementPosition, player, placement.getHand(), blockFace, cursorPosition);
 
         return doPlaceBlock(finalPlacement, playerBlockPlaceEvent.shouldDoBlockUpdates());
-    }
-
-    public boolean placeBlock(BlockHandler.Placement placement) {
-        return doPlaceBlock(placement, true);
     }
 
     @ApiStatus.Internal

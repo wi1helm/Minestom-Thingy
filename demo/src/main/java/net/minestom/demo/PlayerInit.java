@@ -373,6 +373,11 @@ public class PlayerInit {
                     instance.placeBlock(new BlockHandler.PlayerPlacement(material.block(), block, instance, pos, event.getPlayer(), event.getHand(), event.getBlockFace(), event.getCursorPosition()));
                     return;
                 }
+                if (material.equals(Material.DIAMOND_AXE)) {
+                    boolean place = instance.placeBlock(new BlockHandler.PlayerPlacement(Block.DIAMOND_BLOCK, block, instance, pos, event.getPlayer(), event.getHand(), event.getBlockFace(), event.getCursorPosition()));
+                    if (!place) return;
+                    event.getPlayer().playSound(Sound.sound(SoundEvent.BLOCK_AMETHYST_BLOCK_PLACE, Sound.Source.BLOCK, 2f, 1f));
+                }
             })
             .addListener(PlayerBeginItemUseEvent.class, event -> {
                 final Player player = event.getPlayer();
