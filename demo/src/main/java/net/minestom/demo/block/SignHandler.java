@@ -16,6 +16,7 @@ public class SignHandler implements BlockHandler {
 
     @Override
     public boolean onInteract(Interaction interaction) {
+
         interaction.getPlayer().sendPacket(
                 new OpenSignEditorPacket(
                         interaction.getBlockPosition(),

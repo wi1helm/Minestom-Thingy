@@ -225,7 +225,6 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
         final Point clickedPosition = placement.getBlockPosition();
         final BlockFace blockFace = placement.getBlockFace();
         final Point cursorPosition = placement.getCursorPosition();
-        final Block placedBlock = placement.getBlock();
         final ItemStack usedItem = placement.getItem();
         final Block clickedBlock = placement.getPreviousBlock();
 
@@ -235,21 +234,23 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
             if (!placePredicate.test(clickedBlock)) return false;
         }
 
-        final DimensionType instanceDim = this.getCachedDimensionType();
-        if (clickedPosition.y() >= instanceDim.maxY() || clickedPosition.y() < instanceDim.minY()) return false;
-        if (!getWorldBorder().inBounds(clickedPosition)) return false;
+        // Apply ItemBlockState NBT/state from item onto the block
+        final Material useMaterial = usedItem.material();
+        Block placedBlock = placement.getBlock();
+        if (useMaterial.isBlock()) {
+            final ItemBlockState blockState = usedItem.get(DataComponents.BLOCK_STATE, ItemBlockState.EMPTY);
+            placedBlock = blockState.apply(placedBlock);
+        }
 
-        // Set the correct position of the block to be placed depending on placementrules.
-        Point finalPlacementPosition = clickedPosition;
+        final DimensionType instanceDim = this.getCachedDimensionType();
         final BlockManager blockManager = MinecraftServer.getBlockManager();
         final BlockPlacementRule clickedBlockRule = blockManager.getBlockPlacementRule(clickedBlock);
-        @Nullable final Material useMaterial = placedBlock.registry().material();
-
         boolean isTargetReplaceable = clickedBlock.isAir() || clickedBlock.registry().isReplaceable();
 
-        // if the block clicked is not a self replaceable block (ex grass, fern etc) get the correct position
+        // Determine final placement position based on replacement rules
+        Point finalPlacementPosition;
         if (!isTargetReplaceable && (clickedBlockRule == null || !clickedBlockRule.isSelfReplaceable(new BlockPlacementRule.Replacement(clickedBlock, blockFace, cursorPosition, false, useMaterial)))) {
-
+            // Block is not replaceable, place against the clicked face
             finalPlacementPosition = clickedPosition.relative(blockFace);
 
             if (finalPlacementPosition.y() >= instanceDim.maxY() || finalPlacementPosition.y() < instanceDim.minY()) return false;
@@ -257,25 +258,29 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
 
             final Block targetBlock = this.getBlock(finalPlacementPosition);
             final BlockPlacementRule targetRule = blockManager.getBlockPlacementRule(targetBlock);
-
-            // if the new position say is a full block then a block cant be place. This will probably not happen in normal play.
             if (!targetBlock.registry().isReplaceable() && !(targetRule != null && targetRule.isSelfReplaceable(
                     new BlockPlacementRule.Replacement(targetBlock, blockFace, cursorPosition, true, useMaterial)))) {
                 return false;
             }
+        } else {
+            // Block is replaceable, place at the clicked position
+            finalPlacementPosition = clickedPosition;
+
+            if (clickedPosition.y() >= instanceDim.maxY() || clickedPosition.y() < instanceDim.minY()) return false;
+            if (!getWorldBorder().inBounds(clickedPosition)) return false;
         }
 
         final Chunk chunk = this.getChunkAt(finalPlacementPosition);
         if (!ChunkUtils.isLoaded(chunk) || chunk.isReadOnly()) return false;
         if (CollisionUtils.canPlaceBlockAt(this, finalPlacementPosition, placedBlock) != null) return false;
 
-        final Block finalPreviosBlock = this.getBlock(finalPlacementPosition);
+        final Block finalPreviousBlock = this.getBlock(finalPlacementPosition);
 
-        BlockHandler.PlayerPlacement finalPlacement = new BlockHandler.PlayerPlacement(placedBlock, finalPreviosBlock, this, finalPlacementPosition, player, placement.getHand(), blockFace, cursorPosition);
+        PlayerBlockPlaceEvent playerBlockPlaceEvent = new PlayerBlockPlaceEvent(
+                player, this, placedBlock, blockFace,
+                finalPlacementPosition.asBlockVec(), cursorPosition, placement.getHand());
 
-        PlayerBlockPlaceEvent playerBlockPlaceEvent = new PlayerBlockPlaceEvent(player, this, placedBlock, blockFace, finalPlacementPosition.asBlockVec(), cursorPosition, placement.getHand());
-
-        if (useMaterial != null) {
+        if (useMaterial.isBlock()) {
             final ItemBlockState blockState = usedItem.get(DataComponents.BLOCK_STATE, ItemBlockState.EMPTY);
             playerBlockPlaceEvent.setDoBlockUpdates(blockState.equals(useMaterial.prototype().get(DataComponents.BLOCK_STATE, ItemBlockState.EMPTY)));
         }
@@ -283,11 +288,12 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
         if (playerBlockPlaceEvent.isCancelled()) return false;
 
         if (playerBlockPlaceEvent.doesConsumeBlock()) {
-            // Consume the block in the player's hand
             final ItemStack newUsedItem = usedItem.consume(playerBlockPlaceEvent.getConsumeBlockAmount());
             player.setItemInHand(placement.getHand(), newUsedItem);
         }
-        // Pass the corrected finalPlacement downstream!
+
+        BlockHandler.PlayerPlacement finalPlacement = new BlockHandler.PlayerPlacement(playerBlockPlaceEvent.getBlock(), finalPreviousBlock, this, finalPlacementPosition, player, placement.getHand(), blockFace, cursorPosition);
+
         return doPlaceBlock(finalPlacement, playerBlockPlaceEvent.shouldDoBlockUpdates());
     }
 
