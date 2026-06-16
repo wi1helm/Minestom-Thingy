@@ -273,18 +273,22 @@ public abstract class Instance implements Block.Getter, Block.Setter, Biome.Gett
 
         BlockHandler.PlayerPlacement finalPlacement = new BlockHandler.PlayerPlacement(placedBlock, finalPreviosBlock, this, finalPlacementPosition, player, placement.getHand(), blockFace, cursorPosition);
 
-        PlayerBlockPlaceEvent event = new PlayerBlockPlaceEvent(player, this, placedBlock, blockFace, finalPlacementPosition.asBlockVec(), cursorPosition, placement.getHand()
-        );
+        PlayerBlockPlaceEvent playerBlockPlaceEvent = new PlayerBlockPlaceEvent(player, this, placedBlock, blockFace, finalPlacementPosition.asBlockVec(), cursorPosition, placement.getHand());
 
         if (useMaterial != null) {
             final ItemBlockState blockState = usedItem.get(DataComponents.BLOCK_STATE, ItemBlockState.EMPTY);
-            event.setDoBlockUpdates(blockState.equals(useMaterial.prototype().get(DataComponents.BLOCK_STATE, ItemBlockState.EMPTY)));
+            playerBlockPlaceEvent.setDoBlockUpdates(blockState.equals(useMaterial.prototype().get(DataComponents.BLOCK_STATE, ItemBlockState.EMPTY)));
         }
-        EventDispatcher.call(event);
-        if (event.isCancelled()) return false;
+        EventDispatcher.call(playerBlockPlaceEvent);
+        if (playerBlockPlaceEvent.isCancelled()) return false;
 
+        if (playerBlockPlaceEvent.doesConsumeBlock()) {
+            // Consume the block in the player's hand
+            final ItemStack newUsedItem = usedItem.consume(playerBlockPlaceEvent.getConsumeBlockAmount());
+            player.setItemInHand(placement.getHand(), newUsedItem);
+        }
         // Pass the corrected finalPlacement downstream!
-        return doPlaceBlock(finalPlacement, event.shouldDoBlockUpdates());
+        return doPlaceBlock(finalPlacement, playerBlockPlaceEvent.shouldDoBlockUpdates());
     }
 
     public boolean placeBlock(BlockHandler.Placement placement) {

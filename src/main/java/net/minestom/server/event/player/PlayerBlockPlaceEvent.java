@@ -114,7 +114,14 @@ public class PlayerBlockPlaceEvent implements PlayerInstanceEvent, BlockEvent, C
      */
     public boolean doesConsumeBlock() {
         if (player.getGameMode().equals(GameMode.CREATIVE)) return false;
-        return consumeBlockAmount == 0;
+        return consumeBlockAmount != 0;
+    }
+
+    /**
+     * @return the amount of items consumed, one is the defautlt here.
+     */
+    public int getConsumeBlockAmount() {
+        return consumeBlockAmount;
     }
 
     /**

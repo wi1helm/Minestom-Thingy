@@ -137,7 +137,7 @@ public interface BlockHandler {
             this.hand = hand;
             this.blockFace = blockFace;
             this.cursorPosition = cursorPosition;
-            this.item = ItemStack.of(block.registry().material() != null ? block.registry().material() : Material.AIR);
+            this.item = player.getItemInHand(hand);
         }
 
         @ApiStatus.Internal
@@ -222,9 +222,10 @@ public interface BlockHandler {
         private final Point cursorPosition;
         private final Player player;
         private final PlayerHand hand;
+        private final ItemStack item;
 
         @ApiStatus.Internal
-        public Interaction(Block block, Instance instance, BlockFace blockFace, Point blockPosition, Point cursorPosition, Player player, PlayerHand hand) {
+        public Interaction(Block block, Instance instance, BlockFace blockFace, Point blockPosition, Point cursorPosition, Player player, PlayerHand hand, ItemStack item) {
             this.block = block;
             this.instance = instance;
             this.blockFace = blockFace;
@@ -232,6 +233,7 @@ public interface BlockHandler {
             this.cursorPosition = cursorPosition;
             this.player = player;
             this.hand = hand;
+            this.item = item;
         }
 
         public Block getBlock() {
@@ -261,6 +263,8 @@ public interface BlockHandler {
         public PlayerHand getHand() {
             return hand;
         }
+
+        public ItemStack getItem() { return item; }
     }
 
     final class Touch {

@@ -23,7 +23,7 @@ public class SignHandler implements BlockHandler {
                 )
         );
 
-        return true;
+        return false;
     }
 
     @Override

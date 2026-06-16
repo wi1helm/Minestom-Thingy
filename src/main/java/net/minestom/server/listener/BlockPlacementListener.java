@@ -64,13 +64,15 @@ public class BlockPlacementListener {
             return;
         }
         final var handler = block.handler();
-        if (handler != null && !handler.onInteract(new BlockHandler.Interaction(block, instance, face, position, cursor, player, hand))) {
+        if (handler != null && !handler.onInteract(new BlockHandler.Interaction(block, instance, face, position, cursor, player, hand, item))) {
             player.sendPacket(new AcknowledgeBlockChangePacket(packet.sequence()));
             return;
         }
         PlayerUseItemOnBlockEvent playerUseItemOnBlockEvent = new PlayerUseItemOnBlockEvent(player, hand, item, block, position.asBlockVec(), face, cursor);
         EventDispatcher.call(playerUseItemOnBlockEvent);
         player.sendPacket(new AcknowledgeBlockChangePacket(packet.sequence()));
+        // update inventory so client does not predict item loss if no items are actually lossed
+        player.getInventory().update();
     }
 
 
