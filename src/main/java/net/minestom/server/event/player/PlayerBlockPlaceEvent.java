@@ -102,8 +102,13 @@ public class PlayerBlockPlaceEvent implements PlayerInstanceEvent, BlockEvent, C
         if (amount < 0) amount = 0;
         this.consumeBlockAmount = amount;
     }
-
-    public void setConsumeBlock(boolean consumeBlock) {
+    /**
+     * Should the block be consumed if not cancelled.
+     *
+     * @param consumeBlock true if the block should be consumer (remove 1 in amount), false otherwise
+     */
+    @Deprecated
+    public void consumeBlock(boolean consumeBlock) {
         this.consumeBlockAmount = consumeBlock ? 1 : 0;
     }
 
