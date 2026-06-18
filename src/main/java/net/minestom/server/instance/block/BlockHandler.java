@@ -137,6 +137,7 @@ public interface BlockHandler {
             this.hand = hand;
             this.blockFace = blockFace;
             this.cursorPosition = cursorPosition;
+            // Idk if this one could potentially not be correct due to like event delays etc. causing the placement to using incorrect item.
             this.item = player.getItemInHand(hand);
         }
 
